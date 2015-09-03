@@ -29,6 +29,7 @@ module.exports = function(grunt) {
 						'test/**/*.js',
 						'node_modules/lodash/index.js',
 						'node_modules/jquery/dist/jquery.js',
+						'node_modules/angular/angular.js',
 						'node_modules/sinon/pkg/sinon.js'
 					],
 					watch_files: [
