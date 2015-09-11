@@ -20,11 +20,6 @@ describe("Scope", function() {
 			scope.$watch(watchFn, listenerFn);
 			scope.$digest();
 			expect(listenerFn).toHaveBeenCalled();
-			
-			var pi = 1.2,
-			e = 1.29;
-			
-			expect(pi).toBeCloseTo(e, 0.71);
 		});
 		
 		it("calls the watch function with the scope as the argument", function() {
@@ -721,6 +716,199 @@ describe("Scope", function() {
 			
 			scope.$digest();
 			expect(scope.counter).toBe(0);
+		});
+		
+		//__________________________Expressions And Watches__________________________
+		
+		it('accepts expressions for watch functions', function() {
+			var theValue;
+			
+			scope.aValue = 42;
+			scope.$watch('aValue', function(newValue, oldValue, scope) {
+				theValue = newValue;
+			});
+			scope.$digest();
+			expect(theValue).toBe(42);
+		});
+		
+		it('accepts expressions for watch functions', function() {
+			var theValue;
+			
+			scope.aColl = [1, 2, 3];
+			scope.$watchCollection('aColl', function(newValue, oldValue, scope) {
+				theValue = newValue;
+			});
+			scope.$digest();
+			
+			expect(theValue).toEqual([1, 2, 3]);
+		});
+		
+		it('accepts expressions in $eval', function() {
+			expect(scope.$eval('42')).toBe(42);
+		});
+		
+		it('accepts expressions in $apply', function() {
+			scope.aFunction = _.constant(42);
+			expect(scope.$apply('aFunction()')).toBe(42);
+		});
+		
+		it('accepts expressions in $evalAsync', function(done) {
+			var called;
+			scope.aFunction = function() {
+				called = true;
+			};
+			
+			scope.$evalAsync('aFunction()');
+			
+			scope.$$postDigest(function() {
+				expect(called).toBe(true);
+				done();
+			});
+		});
+		
+		it('removes constant watches after first invocation', function() {
+			scope.$watch('[1, 2, 3]', function() {});
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(0);
+		});
+		
+		it('accepts one-time watches', function() {
+			var theValue;
+			
+			scope.aValue = 42;
+			scope.$watch('::aValue', function(newValue, oldValue, scope) {
+				theValue = newValue;
+			});
+			scope.$digest();
+			
+			expect(theValue).toBe(42);
+		});
+		
+		it('removes one-time watches after first invocation', function() {
+			scope.aValue = 42;
+			scope.$watch('::aValue', function() { });
+			scope.$digest();
+			
+			expect(scope.$$watchers.length).toBe(0);
+		});
+		
+		it('does not contaminate other expressions with one-time watches', function() {
+			scope.aValue = 42;
+			scope.$watch('::aValue', function() { });
+			scope.$watch('aValue', function() { });
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(1);
+		});
+		
+		it('does not remove one-time-watches until value is defined', function() {
+			scope.$watch('::aValue', function() { });
+			
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(1);
+			
+			scope.aValue = 42;
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(0);
+		});
+		
+		it('does not remove one-time-watches until value stays defined', function() {
+			scope.aValue = 42;
+			
+			scope.$watch('::aValue', function() { });
+			var unwatchDeleter = scope.$watch('aValue', function() {
+				delete scope.aValue;
+			});
+			
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(2);
+			
+			scope.aValue = 42;
+			unwatchDeleter();
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(0);
+		});
+		
+		it('does not remove one-time watches before all array items defined', function() {
+			scope.$watch('::[1, 2, aValue]', function() { }, true);
+			
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(1);
+			
+			scope.aValue = 3;
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(0);
+		});
+
+		it('does not remove one-time watches before all object vals defined', function() {
+			scope.$watch('::{a: 1, b: aValue}', function() { }, true);
+			
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(1);
+			
+			scope.aValue = 3;
+			scope.$digest();
+			expect(scope.$$watchers.length).toBe(0);
+		});
+		
+		it('does not re-evaluate an array if its contents do not change', function() {
+			var values = [];
+			
+			scope.a = 1;
+			scope.b = 2;
+			scope.c = 3;
+			
+			scope.$watch('[a, b, c]', function(value) {
+				values.push(value);
+			});
+			
+			scope.$digest();
+			expect(values.length).toBe(1);
+			expect(values[0]).toEqual([1, 2, 3]);
+			
+			scope.$digest();
+			expect(values.length).toBe(1);
+			
+			scope.c = 4;
+			scope.$digest();
+			expect(values.length).toBe(2);
+			expect(values[1]).toEqual([1, 2, 4]);
+		});
+		
+		it('does not re-evaluate an array if no changes any level', function() {
+			var values = [];
+			scope.a = 1;
+			scope.b = 2;
+			
+			scope.$watch('[a, [b]]', function(value) {
+				values.push(value);
+			});
+			
+			scope.$digest();
+			expect(values.length).toBe(1);
+			expect(values[0]).toEqual([1, [2]]);
+			
+			scope.$digest();
+			expect(values.length).toBe(1);
+		});
+		
+		it('supports short-circuiting in OR expressions', function() {
+			var invoked = false;
+			scope.fn = function() { invoked = true; };
+			
+			scope.$watch('true || fn()', function(value) { });
+			
+			scope.$digest();
+			expect(invoked).toBe(false);
+		});
+		
+		it('supports short-circuiting in AND expressions', function() {
+			var invoked = false;
+			scope.fn = function() { invoked = true; };
+			
+			scope.$watch('false && fn()', function(value) { });
+			
+			scope.$digest();
+			expect(invoked).toBe(false);
 		});
 
 	});// scope's describe block
