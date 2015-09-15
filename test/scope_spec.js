@@ -910,6 +910,8 @@ describe("Scope", function() {
 			scope.$digest();
 			expect(invoked).toBe(false);
 		});
+		
+		
 
 	});// scope's describe block
 	
