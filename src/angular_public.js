@@ -8,4 +8,6 @@ function publishExternalAPI() {
 	ngModule.provider('$rootScope', $RootScopeProvider);
 	ngModule.provider('$q', $QProvider);
 	ngModule.provider('$$q', $$QProvider);
+	ngModule.provider('$httpBackend', $HttpBackendProvider);
+	ngModule.provider('$http', $HttpProvider);
 }
